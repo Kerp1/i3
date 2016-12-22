@@ -537,7 +537,7 @@ void handle_button(xcb_button_press_event_t *event) {
                     render = &block->short_render;
                 }
 
-                if (i3string_get_num_bytes(text) == 0)
+                if (i3string_get_num_bytes(text) == 0 && block->icon == NULL)
                     continue;
 
                 last_block_x = block_x;
