@@ -385,6 +385,7 @@ i3bar_i3bar_SOURCES = \
 	i3bar/src/main.c \
 	i3bar/src/mode.c \
 	i3bar/src/outputs.c \
+	i3bar/src/xbm_image.c \
 	i3bar/src/parse_json_header.c \
 	i3bar/src/workspaces.c \
 	i3bar/src/xcb.c

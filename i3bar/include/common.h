@@ -14,6 +14,7 @@
 #include <xcb/xproto.h>
 #include "libi3.h"
 #include "queue.h"
+#include "xbm_image.h"
 
 typedef struct rect_t rect;
 
@@ -58,6 +59,9 @@ struct status_block {
     char *min_width_str;
 
     blockalign_t align;
+
+    struct xbm_image *icon;
+    char *icon_color;
 
     bool urgent;
     bool no_separator;

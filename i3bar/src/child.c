@@ -77,6 +77,8 @@ static void clear_statusline(struct statusline_head *head, bool free_resources) 
             FREE(first->min_width_str);
             FREE(first->background);
             FREE(first->border);
+            FREE(first->icon_color);
+            xbm_free (first->icon);
         }
 
         TAILQ_REMOVE(head, first, blocks);
@@ -220,6 +222,15 @@ static int stdin_string(void *context, const unsigned char *val, size_t len) {
     if (strcasecmp(ctx->last_map_key, "markup") == 0) {
         ctx->block.pango_markup = (len == strlen("pango") && !strncasecmp((const char *)val, "pango", strlen("pango")));
         return 1;
+    }
+    if (strcasecmp(ctx->last_map_key, "icon") == 0) {
+        char * s;
+        sasprintf(&s, "%.*s", len, val);
+        ctx->block.icon = xbm_from_file(s);
+        FREE(s);
+    }
+    if (strcasecmp(ctx->last_map_key, "icon_color") == 0) {
+        sasprintf(&(ctx->block.icon_color), "%.*s", len, val);
     }
     if (strcasecmp(ctx->last_map_key, "align") == 0) {
         if (len == strlen("center") && !strncmp((const char *)val, "center", strlen("center"))) {

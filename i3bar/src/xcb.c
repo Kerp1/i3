@@ -14,6 +14,7 @@
 #include <xcb/xproto.h>
 #include <xcb/xcb_aux.h>
 #include <xcb/xcb_cursor.h>
+#include <xcb/xcb_image.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -206,7 +207,7 @@ uint32_t predict_statusline_length(bool use_short_text) {
             render = &block->short_render;
         }
 
-        if (i3string_get_num_bytes(text) == 0)
+        if (i3string_get_num_bytes(text) == 0 && block->icon == NULL)
             continue;
 
         render->width = predict_text_width(text);
@@ -238,6 +239,10 @@ uint32_t predict_statusline_length(bool use_short_text) {
         /* If this is not the last block, add some pixels for a separator. */
         if (TAILQ_NEXT(block, blocks) != NULL)
             width += block->sep_block_width;
+
+        /* Add some space between the text and the icon. */
+        if (block->icon)
+            width += block->icon->width + 5;
     }
 
     return width;
@@ -269,8 +274,41 @@ void draw_statusline(i3_output *output, uint32_t clip_left, bool use_focus_color
             render = &block->short_render;
         }
 
-        if (i3string_get_num_bytes(text) == 0)
+        if (i3string_get_num_bytes(block->full_text) == 0 && block->icon == NULL)
             continue;
+
+        if (block->icon != NULL) {
+            xcb_image_t *  img;
+
+            img = xcb_image_create_native (conn, block->icon->width,
+                                           block->icon->height,
+                                           XCB_IMAGE_FORMAT_XY_BITMAP,
+                                           1, NULL, ~0, NULL);
+
+            img->data = malloc (img->size);
+            memset (img->data, 0, img->size);
+
+            for (int i = 0; i < block->icon->height; i++)
+                for (int j = 0; j < block->icon->width; j++) {
+                    unsigned pos = (img->width /8 + !!(img->width % 8))*i + j/8;
+                    bool p = !!(block->icon->data[pos] & (1 << (j%8)));
+                    xcb_image_put_pixel (img, j, i, p);
+                }
+
+            uint32_t mask = XCB_GC_FOREGROUND | XCB_GC_BACKGROUND;
+            if (block->icon_color) {
+                uint32_t values[] = { get_colorpixel(block->icon_color), colors.bar_bg.colorpixel };
+                xcb_change_gc(xcb_connection, output->statusline_buffer.gc, mask, values);
+            } else {
+                uint32_t values[] = { colors.bar_fg.colorpixel, colors.bar_bg.colorpixel };
+                xcb_change_gc(xcb_connection, output->statusline_buffer.gc, mask, values);
+            }
+
+            xcb_image_put (conn, output->statusline_buffer.id, output->statusline_buffer.gc,
+                           img, x, 3 + (font.height - block->icon->height)/2, 0);
+            xcb_image_destroy (img);
+            x += block->icon->width + 5;
+        }
 
         color_t fg_color;
         if (block->urgent) {
@@ -504,6 +542,10 @@ void handle_button(xcb_button_press_event_t *event) {
 
                 last_block_x = block_x;
                 block_x += render->width + render->x_offset + render->x_append + get_sep_offset(block) + sep_offset_remainder;
+
+                /* Add icon width */
+                if (block->icon)
+                    block_x += block->icon->width + 5;
 
                 if (statusline_x <= block_x && statusline_x >= last_block_x) {
                     send_block_clicked(event->detail, block->name, block->instance, event->root_x, event->root_y);
